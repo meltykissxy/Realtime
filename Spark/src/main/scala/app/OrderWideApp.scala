@@ -1,13 +1,10 @@
 package app
 
-import java.text.SimpleDateFormat
 import java.util.Date
 
 import com.alibaba.fastjson.{JSON, JSONObject}
 import bean.{OrderDetail, OrderInfo}
 import utils.{HbaseUtil, MykafkaUtil, OffsetManagerUtil}
-import org.apache.commons.lang3.StringUtils
-import org.apache.commons.lang3.time.DateUtils
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.SparkConf

@@ -13,7 +13,6 @@ import org.apache.spark.SparkConf
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
 import org.apache.spark.streaming.kafka010.{HasOffsetRanges, OffsetRange}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
-import redis.clients.jedis.Jedis
 
 import scala.collection.mutable.ListBuffer
 
@@ -90,7 +89,8 @@ object DauApp {
             val pageJsonObj: JSONObject = jsonObj.getJSONObject("page")
             if (pageJsonObj != null) {
                 val lastPageId: String = pageJsonObj.getString("last_page_id")
-                if (lastPageId == null || lastPageId.length == 0) {
+                // lastPageId.isEmpty而不是lastPageId.length == 0，注意每个细节
+                if (lastPageId == null || lastPageId.isEmpty) {
                     true
                 } else {
                     false
@@ -165,7 +165,7 @@ object DauApp {
 
                 //批量保存//jsonObjItr 一起保存到容器中
                 val docList: List[JSONObject] = jsonObjItr.toList
-                if (docList.size > 0) {
+                if (docList.nonEmpty) {
                     //
                     //uuid //mechineid+时间戳
                     val dateFormat = new SimpleDateFormat("yyyyMMdd")

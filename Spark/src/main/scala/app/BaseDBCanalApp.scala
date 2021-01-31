@@ -4,7 +4,6 @@ import java.util
 
 import com.alibaba.fastjson.{JSON, JSONArray, JSONObject}
 import utils.{HbaseUtil, MykafkaSink, MykafkaUtil, OffsetManagerUtil}
-import org.apache.commons.lang3.StringUtils
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.SparkConf
@@ -13,11 +12,7 @@ import org.apache.spark.streaming.dstream.{DStream, InputDStream}
 import org.apache.spark.streaming.kafka010.{HasOffsetRanges, OffsetRange}
 
 object BaseDBCanalApp {
-
     def main(args: Array[String]): Unit = {
-
-        //精通 cannel
-        //熟练使用 canel   cannal
 
         val sparkConf: SparkConf = new SparkConf().setMaster("local[4]").setAppName("base_db_canal_app")
         //1 业务对时效的需求  2 处理业务的计算时间  尽量保证周期内可以处理完当前批次
