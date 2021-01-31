@@ -12,27 +12,21 @@ import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder
 import org.elasticsearch.search.sort.SortOrder
 
 object MyEsUtil {
-    private    var  factory:  JestClientFactory=null;
+    private var factory: JestClientFactory = null
 
-
-    def getClient:JestClient={
-        if(factory==null) build()
+    def getClient: JestClient = {
+        if(factory == null) build()
         factory.getObject
-
     }
 
-    def build(): Unit ={
-        factory=new JestClientFactory
+    def build(): Unit = {
+        factory = new JestClientFactory
         val properties: Properties = PropertiesUtil.load("config.properties")
         val serverUri: String = properties.getProperty("elasticsearch.server")
-        factory.setHttpClientConfig(new HttpClientConfig.Builder(serverUri)
+        factory.setHttpClientConfig(
+            new HttpClientConfig.Builder(serverUri)
             .multiThreaded(true).maxTotalConnection(10)
             .connTimeout(10000).readTimeout(10000).build())
-    }
-
-
-    def main(args: Array[String]): Unit = {
-        search()
     }
 
     def search(): Unit ={
@@ -66,7 +60,6 @@ object MyEsUtil {
     val DEFAULT_TYPE="_doc"
     //batch  bulk   构建批量保存
     def saveBulk(indexName:String, docList:List[(String,Any)]): Unit ={
-
         val jest: JestClient = getClient
         val bulkBuilder = new Bulk.Builder()
         //加入很多个单行操作
@@ -90,8 +83,5 @@ object MyEsUtil {
         jest.close()
     }
 
-
-    case class MovieTest(id:String,movie_name:String)
-
-
+    case class MovieTest(id: String, movie_name: String)
 }

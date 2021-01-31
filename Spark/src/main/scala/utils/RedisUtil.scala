@@ -7,9 +7,7 @@ object RedisUtil {
 
     def getJedisClient: Jedis = {
         if (jedisPool == null) {
-            val config = PropertiesUtil.load("config.properties")
-            val host = config.getProperty("redis.host")
-            val port = config.getProperty("redis.port")
+            val (host, port) = PropertiesUtil.initRedis()
 
             val jedisPoolConfig = new JedisPoolConfig()
             jedisPoolConfig.setMaxTotal(10) //最大连接数
@@ -24,9 +22,10 @@ object RedisUtil {
         jedisPool.getResource
     }
 
-    def main(args: Array[String]): Unit = {
-        val jedisClient = getJedisClient
-        println(jedisClient.ping())
-        jedisClient.close()
-    }
+    /**
+     * 使用
+     * val jedisClient = getJedisClient
+     * println(jedisClient.ping())
+     * jedisClient.close()
+     */
 }
