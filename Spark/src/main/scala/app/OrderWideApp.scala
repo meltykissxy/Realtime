@@ -1,10 +1,9 @@
 package app
 
 import java.util.Date
-
 import com.alibaba.fastjson.{JSON, JSONObject}
 import bean.{OrderDetail, OrderInfo}
-import utils.{HbaseUtil, MykafkaUtil, OffsetManagerUtil}
+import utils.{DateUtil, HbaseUtil, MykafkaUtil, OffsetManagerUtil}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.SparkConf
@@ -82,9 +81,9 @@ object OrderWideApp {
             val userInfoJsonObj: JSONObject = HbaseUtil.get("DIM_USER_INFO", rowKey)
 
             val date: Date = userInfoJsonObj.getDate("birthday")
-            val userBirthMills: Long = date.getTime
-            val curMills = System.currentTimeMillis()
-            orderInfo.user_age = ((curMills - userBirthMills) / 1000 / 60 / 60 / 24 / 365).toInt
+//            val userBirthMills: Long = date.getTime
+//            val curMills = System.currentTimeMillis()
+            orderInfo.user_age = DateUtil.getAgeByBirth(new Date(date.getTime))
             orderInfo.user_gender = userInfoJsonObj.getString("gender")
             orderInfo
         }
