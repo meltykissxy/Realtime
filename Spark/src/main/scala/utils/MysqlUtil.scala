@@ -7,12 +7,12 @@ import com.alibaba.fastjson.JSONObject
 object MysqlUtil {
 
     def main(args: Array[String]): Unit = {
-        val list:  java.util.List[ JSONObject] = queryList("select * from base_province")
+        val list:  java.util.List[JSONObject] = queryList("select * from base_province")
         println(list)
     }
 
     // 通过sql 把数据提取到一个jsonObject列表中
-    def queryList(sql: String):java.util.List[JSONObject] = {
+    def queryList(sql: String): java.util.List[JSONObject] = {
         Class.forName("com.mysql.jdbc.Driver")
         val resultList: java.util.List[JSONObject] = new java.util.ArrayList[JSONObject]()
         val conn: Connection = DriverManager
