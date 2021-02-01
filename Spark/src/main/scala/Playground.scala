@@ -1,5 +1,5 @@
-import com.alibaba.fastjson.{JSON, JSONObject}
-
 object Playground {
+    def main(args: Array[String]): Unit = {
 
+    }
 }

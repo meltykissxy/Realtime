@@ -173,12 +173,12 @@ object DauApp {
                     //幂等性保存?  如何做到幂等性保存？给每条数据提供一个id
                     // 选择id  1 ：必须保证 该id 在索引中是唯一  2： 必须保证id在不同时间 不同情况下 提交是不会变化
                     val docWithIdList: List[(String, DauInfo)] = docList.map { jsonObj =>
-                        val commonJsonObj: JSONObject = jsonObj.getJSONObject("common")
-                        val mid: String = jsonObj.getJSONObject("common").getString("mid")
-                        val uid: String = jsonObj.getJSONObject("common").getString("uid")
-                        val ar: String = jsonObj.getJSONObject("common").getString("ar")
-                        val ch: String = jsonObj.getJSONObject("common").getString("ch")
-                        val vc: String = jsonObj.getJSONObject("common").getString("vc")
+                        val commonJsonObj = jsonObj.getJSONObject("common")
+                        val mid: String = commonJsonObj.getString("mid")
+                        val uid: String = commonJsonObj.getString("uid")
+                        val ar: String = commonJsonObj.getString("ar")
+                        val ch: String = commonJsonObj.getString("ch")
+                        val vc: String = commonJsonObj.getString("vc")
                         val dt: String = jsonObj.getString("dt")
                         val hr: String = jsonObj.getString("hr")
                         val ts: Long = jsonObj.getLong("ts")

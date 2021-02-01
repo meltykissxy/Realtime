@@ -1,15 +1,11 @@
 package app
 
-import java.text.SimpleDateFormat
 import java.util
 import java.util.Date
-
 import com.alibaba.fastjson.serializer.SerializeConfig
 import com.alibaba.fastjson.{JSON, JSONObject}
-import com.atguigu.gmall0921.realtime.bean.{OrderDetail, OrderInfo, OrderWide}
-import com.atguigu.gmall0921.realtime.utils.{HbaseUtil, MykafkaUtil, OffsetManagerUtil, RedisUtil}
-import org.apache.commons.lang3.StringUtils
-import org.apache.commons.lang3.time.DateUtils
+import bean.{OrderDetail, OrderInfo, OrderWide}
+import utils.{DateUtil, HbaseUtil, MykafkaUtil, OffsetManagerUtil, RedisUtil}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.SparkConf
@@ -79,7 +75,7 @@ object OrderWideApp {
             orderInfo.create_hour = creatTimeArr(1).split(":")(0)
             orderInfo
         }
-        val orderDetailDstream: DStream[OrderDetail]=orderDetailInputDstreamWithOffsetDstream.map{record=>
+        val orderDetailDstream: DStream[OrderDetail]=orderDetailInputDstreamWithOffsetDstream.map{ record=>
             val orderDetail: OrderDetail = JSON.parseObject(record.value(), classOf[OrderDetail])
             orderDetail
         }
@@ -90,9 +86,7 @@ object OrderWideApp {
             val userInfoJsonObj: JSONObject = HbaseUtil.get("DIM_USER_INFO", rowKey)
 
             val date: Date = userInfoJsonObj.getDate("birthday")
-            val userBirthMills: Long = date.getTime
-            val curMills = System.currentTimeMillis()
-            orderInfo.user_age = ((curMills - userBirthMills) / 1000 / 60 / 60 / 24 / 365).toInt
+            orderInfo.user_age = DateUtil.getAgeByBirth(new Date(date.getTime))
             orderInfo.user_gender = userInfoJsonObj.getString("gender")
             orderInfo
         }
@@ -130,6 +124,7 @@ object OrderWideApp {
                 //展开广播变量
                 val provinceMap: mutable.Map[String, JSONObject] = provinceBC.value
                 val provinceObj: JSONObject = provinceMap.getOrElse(HbaseUtil.getDimRowkey(orderInfo.province_id.toString), null)
+                // 这里这么多编码是为了展示用的
                 orderInfo.province_name = provinceObj.getString("name") //  Sugar
                 orderInfo.province_area_code = provinceObj.getString("area_code") //省市行政区域码 dataV
                 orderInfo.province_iso_code = provinceObj.getString("iso_code") // 国际编码（旧) superSet
@@ -139,21 +134,31 @@ object OrderWideApp {
             orderInfoRDD
         }
 
-        //流join  1 把流改为k-v tuple2结构 2 进行join操作  得到合并的元组
-        val orderInfoWithIdDstream: DStream[(Long, OrderInfo)] = orderInfoWithDimDstream.map(orderInfo=>(orderInfo.id,orderInfo))
+        /**
+         * 双流join  1 把流改为k-v tuple2结构 2 进行join操作  得到合并的元组
+         * 转换结构的理由：要对两个流join，必须是KV结构，只有相同的Key才行
+         * orderInfo.id对应的orderDetail.order_id
+         */
+        val orderInfoWithIdDstream: DStream[(Long, OrderInfo)] = orderInfoWithDimDstream.map(
+            orderInfo => (orderInfo.id, orderInfo)
+        )
 
-        val orderDetailWithIdDstream: DStream[(Long, OrderDetail)] = orderDetailDstream.map(orderDetail=>(orderDetail.order_id,orderDetail))
+        val orderDetailWithIdDstream: DStream[(Long, OrderDetail)] = orderDetailDstream.map(
+            orderDetail => (orderDetail.order_id, orderDetail)
+        )
         //shuffle
-        val orderJoinDstream: DStream[(Long, (OrderInfo, OrderDetail))] = orderInfoWithIdDstream.join(orderDetailWithIdDstream)
+        // val orderJoinDstream: DStream[(Long, (OrderInfo, OrderDetail))] = orderInfoWithIdDstream.join(orderDetailWithIdDstream)
 
         //  能不能写一个通用的解决方案  把缓存处理封装起来
         //    def     DstreamJoinUtil(Dstream[k,v1], Dstream[k,v2]) :  Dstream[(k,(v1,v2))]
 
+        // 注意这里的Option。主表还是从表进入缓存后都可能发生找不到对方的时候
         val orderFullJoinedDstream: DStream[(Long, (Option[OrderInfo], Option[OrderDetail]))] = orderInfoWithIdDstream.fullOuterJoin(orderDetailWithIdDstream)
 
-        val orderWideDStream: DStream[OrderWide] = orderFullJoinedDstream.flatMap { case (orderId, (orderInfoOption, orderDetailOption)) =>
+        val orderWideDStream: DStream[OrderWide] = orderFullJoinedDstream.flatMap {
+            case (orderId, (orderInfoOption, orderDetailOption)) =>
             val orderWideList: ListBuffer[OrderWide] = ListBuffer[OrderWide]()
-            val jedis: Jedis = RedisUtil.getJedisClient
+            val jedis = RedisUtil.getJedisClient
             if (orderInfoOption != None) {
                 val orderInfo: OrderInfo = orderInfoOption.get
                 if (orderDetailOption != None) {
@@ -170,6 +175,7 @@ object OrderWideApp {
                 val orderInfoKey = "ORDER_INFO:" + orderInfo.id
                 //可以使用专业json4s  scala json转换工具
                 val orderInfoJson = JSON.toJSONString(orderInfo, new SerializeConfig(true))
+                // 延迟几秒计算离谱了，我们设置了10分钟失效就已经格外开恩了
                 jedis.setex(orderInfoKey, 600, orderInfoJson)
                 //2.2  尝试读取从表的缓存 和自己匹配     如果匹配成功  组成一条宽表数据
                 val orderDetailKey = "ORDER_DETAIL:" + orderInfo.id
@@ -195,34 +201,22 @@ object OrderWideApp {
                 //3.2  尝试读取主表的缓存 和自己匹配     如果匹配成功  组成一条宽表数据
                 val orderInfoKey = "ORDER_INFO:" + orderDetail.order_id
                 val orderInfoJson: String = jedis.get(orderInfoKey)
-                if (orderInfoJson != null && orderInfoJson.length() > 0) {
+                if (orderInfoJson != null && orderInfoJson.nonEmpty) {
                     val orderInfo: OrderInfo = JSON.parseObject(orderInfoJson, classOf[OrderInfo])
                     val orderWide = new OrderWide(orderInfo, orderDetail)
                     orderWideList.append(orderWide)
                 }
             }
 
-
             jedis.close()
             orderWideList
         }
 
-
         orderWideDStream.print(1000)
-
-
-
 
         // orderInfoWithDimDstream.print(1000)
         //orderDetailDstream.print(1000)
-
         ssc.start()
         ssc.awaitTermination()
-
-
-
-
-
     }
-
 }
